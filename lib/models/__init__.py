@@ -1,1 +1,1 @@
-from .YOLOP import get_net
+from .YOLOP import get_net, get_net_pole

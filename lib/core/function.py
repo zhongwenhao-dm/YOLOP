@@ -160,6 +160,8 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     confusion_matrix = ConfusionMatrix(nc=model.nc) #detector confusion matrix
     da_metric = SegmentationMetric(config.num_seg_class) #segment confusion matrix    
     ll_metric = SegmentationMetric(2) #segment confusion matrix
+    # add pole
+    po_metric = SegmentationMetric(2) #segment confusion matrix
 
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
@@ -177,6 +179,11 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     ll_acc_seg = AverageMeter()
     ll_IoU_seg = AverageMeter()
     ll_mIoU_seg = AverageMeter()
+
+    # add pole
+    po_acc_seg = AverageMeter()
+    po_IoU_seg = AverageMeter()
+    po_mIoU_seg = AverageMeter()
 
     T_inf = AverageMeter()
     T_nms = AverageMeter()
@@ -201,7 +208,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             ratio = shapes[0][1][0][0]
 
             t = time_synchronized()
-            det_out, da_seg_out, ll_seg_out= model(img)
+            det_out, da_seg_out, ll_seg_out, po_seg_out= model(img)
             t_inf = time_synchronized() - t
             if batch_i > 0:
                 T_inf.update(t_inf/img.size(0),img.size(0))
@@ -239,8 +246,24 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             ll_acc_seg.update(ll_acc,img.size(0))
             ll_IoU_seg.update(ll_IoU,img.size(0))
             ll_mIoU_seg.update(ll_mIoU,img.size(0))
+
+            # add pole
+            _,po_predict=torch.max(po_seg_out, 1)
+            _,po_gt=torch.max(target[3], 1)
+            po_predict = po_predict[:, pad_h:height-pad_h, pad_w:width-pad_w]
+            po_gt = po_gt[:, pad_h:height-pad_h, pad_w:width-pad_w]
+
+            po_metric.reset()
+            po_metric.addBatch(po_predict.cpu(), po_gt.cpu())
+            po_acc = po_metric.lineAccuracy()
+            po_IoU = po_metric.IntersectionOverUnion()
+            po_mIoU = po_metric.meanIntersectionOverUnion()
+
+            po_acc_seg.update(po_acc,img.size(0))
+            po_IoU_seg.update(po_IoU,img.size(0))
+            po_mIoU_seg.update(po_mIoU,img.size(0))
             
-            total_loss, head_losses = criterion((train_out,da_seg_out, ll_seg_out), target, shapes,model)   #Compute loss
+            total_loss, head_losses = criterion((train_out,da_seg_out, ll_seg_out, po_seg_out), target, shapes,model)   #Compute loss
             losses.update(total_loss.item(), img.size(0))
 
             #NMS
@@ -257,6 +280,8 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
             if config.TEST.PLOTS:
                 if batch_i == 0:
                     for i in range(test_batch_size):
+                        if i%4!=0:
+                            continue
                         img_test = cv2.imread(paths[i])
                         da_seg_mask = da_seg_out[i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
                         da_seg_mask = torch.nn.functional.interpolate(da_seg_mask, scale_factor=int(1/ratio), mode='bilinear')
@@ -291,6 +316,25 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         _ = show_seg_result(img_ll, ll_seg_mask, i,epoch,save_dir, is_ll=True)
                         _ = show_seg_result(img_ll1, ll_gt_mask, i, epoch, save_dir, is_ll=True, is_gt=True)
 
+                        # add pole
+                        img_po = cv2.imread(paths[i])
+                        po_seg_mask = po_seg_out[i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
+                        po_seg_mask = torch.nn.functional.interpolate(po_seg_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        _, po_seg_mask = torch.max(po_seg_mask, 1)
+
+                        po_gt_mask = target[3][i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
+                        po_gt_mask = torch.nn.functional.interpolate(po_gt_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        _, po_gt_mask = torch.max(po_gt_mask, 1)
+
+                        po_seg_mask = po_seg_mask.int().squeeze().cpu().numpy()
+                        po_gt_mask = po_gt_mask.int().squeeze().cpu().numpy()
+                        # seg_mask = seg_mask > 0.5
+                        # plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
+                        img_po1 = img_po.copy()
+                        _ = show_seg_result(img_po, po_seg_mask, i,epoch,save_dir, is_po=True)
+                        _ = show_seg_result(img_po1, po_gt_mask, i, epoch, save_dir, is_po=True, is_gt=True)
+
+                        
                         img_det = cv2.imread(paths[i])
                         img_gt = img_det.copy()
                         det = output[i].clone()
@@ -481,6 +525,8 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
 
     da_segment_result = (da_acc_seg.avg,da_IoU_seg.avg,da_mIoU_seg.avg)
     ll_segment_result = (ll_acc_seg.avg,ll_IoU_seg.avg,ll_mIoU_seg.avg)
+    # add pole
+    po_segment_result = (po_acc_seg.avg,po_IoU_seg.avg,po_mIoU_seg.avg)
 
     # print(da_segment_result)
     # print(ll_segment_result)
@@ -488,7 +534,7 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
     # print('mp:{},mr:{},map50:{},map:{}'.format(mp, mr, map50, map))
     #print segmet_result
     t = [T_inf.avg, T_nms.avg]
-    return da_segment_result, ll_segment_result, detect_result, losses.avg, maps, t
+    return da_segment_result, ll_segment_result, po_segment_result, detect_result, losses.avg, maps, t
         
 
 

@@ -21,7 +21,7 @@ def plot_img_and_mask(img, mask, index,epoch,save_dir):
     # plt.show()
     plt.savefig(save_dir+"/batch_{}_{}_seg.png".format(epoch,index))
 
-def show_seg_result(img, result, index, epoch, save_dir=None, is_ll=False,palette=None,is_demo=False,is_gt=False):
+def show_seg_result(img, result, index, epoch, save_dir=None, is_ll=False,palette=None,is_demo=False,is_gt=False,is_po=False):
     # img = mmcv.imread(img)
     # img = img.copy()
     # seg = result[0]
@@ -61,15 +61,19 @@ def show_seg_result(img, result, index, epoch, save_dir=None, is_ll=False,palett
 
     if not is_demo:
         if not is_gt:
-            if not is_ll:
-                cv2.imwrite(save_dir+"/batch_{}_{}_da_segresult.png".format(epoch,index), img)
-            else:
+            if is_ll:
                 cv2.imwrite(save_dir+"/batch_{}_{}_ll_segresult.png".format(epoch,index), img)
-        else:
-            if not is_ll:
-                cv2.imwrite(save_dir+"/batch_{}_{}_da_seg_gt.png".format(epoch,index), img)
+            elif is_po:
+                cv2.imwrite(save_dir+"/batch_{}_{}_po_segresult.png".format(epoch,index), img)
             else:
-                cv2.imwrite(save_dir+"/batch_{}_{}_ll_seg_gt.png".format(epoch,index), img)  
+                cv2.imwrite(save_dir+"/batch_{}_{}_da_segresult.png".format(epoch,index), img)
+        else:
+            if is_ll:
+                cv2.imwrite(save_dir+"/batch_{}_{}_ll_seg_gt.png".format(epoch,index), img)
+            elif is_po:
+                cv2.imwrite(save_dir+"/batch_{}_{}_po_seg_gt.png".format(epoch,index), img)
+            else:
+                cv2.imwrite(save_dir+"/batch_{}_{}_da_seg_gt.png".format(epoch,index), img)  
     return img
 
 def plot_one_box(x, img, color=None, label=None, line_thickness=None):

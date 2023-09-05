@@ -23,11 +23,11 @@ from tensorboardX import SummaryWriter
 import lib.dataset as dataset
 from lib.config import cfg
 from lib.config import update_config
-from lib.core.loss import get_loss
+from lib.core.loss import get_loss, get_loss_pole
 from lib.core.function import train
 from lib.core.function import validate
 from lib.core.general import fitness
-from lib.models import get_net
+from lib.models import get_net, get_net_pole
 from lib.utils import is_parallel
 from lib.utils.utils import get_optimizer
 from lib.utils.utils import save_checkpoint
@@ -76,6 +76,10 @@ def main():
     update_config(cfg, args)
 
     # Set DDP variables
+    # DDP模式：单机多卡、多机多卡模式训练
+    # world_size：全局进程数量，一张卡一个进程
+    # global_rank：进程编号
+    # rank：当前进程的编号，用于进程间的通信，rank=0就是master进程
     world_size = int(os.environ['WORLD_SIZE']) if 'WORLD_SIZE' in os.environ else 1
     global_rank = int(os.environ['RANK']) if 'RANK' in os.environ else -1
 
@@ -118,14 +122,16 @@ def main():
         dist.init_process_group(backend='nccl', init_method='env://')  # distributed backend
     
     print("load model to device")
-    model = get_net(cfg).to(device)
+    # 新建立模型 yolop.py
+    model = get_net_pole(cfg).to(device)
     # print("load finished")
     #model = model.to(device)
     # print("finish build model")
     
 
     # define loss function (criterion) and optimizer
-    criterion = get_loss(cfg, device=device)
+    #定义损失函数，设定优化器
+    criterion = get_loss_pole(cfg, device=device)
     optimizer = get_optimizer(cfg, model)
 
 
@@ -133,15 +139,20 @@ def main():
     best_perf = 0.0
     best_model = False
     last_epoch = -1
-
+    
+   # 网络结构划分
     Encoder_para_idx = [str(i) for i in range(0, 17)]
     Det_Head_para_idx = [str(i) for i in range(17, 25)]
     Da_Seg_Head_para_idx = [str(i) for i in range(25, 34)]
     Ll_Seg_Head_para_idx = [str(i) for i in range(34,43)]
+    Po_Seg_Head_para_idx = [str(i) for i in range(43,52)]
 
+
+    # 初始化学习率，后续再train()的warmup中会调整学习率
+    # 根据epoch来调整学习率
     lf = lambda x: ((1 + math.cos(x * math.pi / cfg.TRAIN.END_EPOCH)) / 2) * \
                    (1 - cfg.TRAIN.LRF) + cfg.TRAIN.LRF  # cosine
-    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
+    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lf) # 给优化器绑定一个指数衰减学习率控制器
     begin_epoch = cfg.TRAIN.BEGIN_EPOCH
 
     if rank in [-1, 0]:
@@ -258,7 +269,7 @@ def main():
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
     )
 
-    train_dataset = eval('dataset.' + cfg.DATASET.DATASET)(
+    train_dataset = eval('dataset.' + cfg.DATASET.DATASET + '_pole')(
         cfg=cfg,
         is_train=True,
         inputsize=cfg.MODEL.IMAGE_SIZE,
@@ -276,12 +287,12 @@ def main():
         num_workers=cfg.WORKERS,
         sampler=train_sampler,
         pin_memory=cfg.PIN_MEMORY,
-        collate_fn=dataset.AutoDriveDataset.collate_fn
+        collate_fn=dataset.AutoDriveDataset_pole.collate_fn
     )
     num_batch = len(train_loader)
 
     if rank in [-1, 0]:
-        valid_dataset = eval('dataset.' + cfg.DATASET.DATASET)(
+        valid_dataset = eval('dataset.' + cfg.DATASET.DATASET + '_pole')(
             cfg=cfg,
             is_train=False,
             inputsize=cfg.MODEL.IMAGE_SIZE,
@@ -297,7 +308,7 @@ def main():
             shuffle=False,
             num_workers=cfg.WORKERS,
             pin_memory=cfg.PIN_MEMORY,
-            collate_fn=dataset.AutoDriveDataset.collate_fn
+            collate_fn=dataset.AutoDriveDataset_pole.collate_fn
         )
         print('load data finished')
     
@@ -327,7 +338,7 @@ def main():
         # evaluate on validation set
         if (epoch % cfg.TRAIN.VAL_FREQ == 0 or epoch == cfg.TRAIN.END_EPOCH) and rank in [-1, 0]:
             # print('validate')
-            da_segment_results,ll_segment_results,detect_results, total_loss,maps, times = validate(
+            da_segment_results,ll_segment_results,po_segment_results,detect_results, total_loss, maps, times = validate(
                 epoch,cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict,
                 logger, device, rank
@@ -337,10 +348,12 @@ def main():
             msg = 'Epoch: [{0}]    Loss({loss:.3f})\n' \
                       'Driving area Segment: Acc({da_seg_acc:.3f})    IOU ({da_seg_iou:.3f})    mIOU({da_seg_miou:.3f})\n' \
                       'Lane line Segment: Acc({ll_seg_acc:.3f})    IOU ({ll_seg_iou:.3f})  mIOU({ll_seg_miou:.3f})\n' \
+                      'pole object Segment: Acc({po_seg_acc:.3f})    IOU ({po_seg_iou:.3f})  mIOU({po_seg_miou:.3f})\n' \
                       'Detect: P({p:.3f})  R({r:.3f})  mAP@0.5({map50:.3f})  mAP@0.5:0.95({map:.3f})\n'\
                       'Time: inference({t_inf:.4f}s/frame)  nms({t_nms:.4f}s/frame)'.format(
                           epoch,  loss=total_loss, da_seg_acc=da_segment_results[0],da_seg_iou=da_segment_results[1],da_seg_miou=da_segment_results[2],
                           ll_seg_acc=ll_segment_results[0],ll_seg_iou=ll_segment_results[1],ll_seg_miou=ll_segment_results[2],
+                          po_seg_acc=po_segment_results[0],po_seg_iou=po_segment_results[1],po_seg_miou=po_segment_results[2],
                           p=detect_results[0],r=detect_results[1],map50=detect_results[2],map=detect_results[3],
                           t_inf=times[0], t_nms=times[1])
             logger.info(msg)

@@ -45,15 +45,23 @@ _C.LOSS.CLS_GAIN = 0.5  # classification loss gain
 _C.LOSS.OBJ_GAIN = 1.0  # object loss gain
 _C.LOSS.DA_SEG_GAIN = 0.2  # driving area segmentation loss gain
 _C.LOSS.LL_SEG_GAIN = 0.2  # lane line segmentation loss gain
+_C.LOSS.PO_SEG_GAIN = 0.2  # pole object segmentation loss gain
 _C.LOSS.LL_IOU_GAIN = 0.2 # lane line iou loss gain
 
 
 # DATASET related params
 _C.DATASET = CN(new_allowed=True)
-_C.DATASET.DATAROOT = '/home/zwt/bdd/bdd100k/images/100k'       # the path of images folder
-_C.DATASET.LABELROOT = '/home/zwt/bdd/bdd100k/labels/100k'      # the path of det_annotations folder
-_C.DATASET.MASKROOT = '/home/zwt/bdd/bdd_seg_gt'                # the path of da_seg_annotations folder
-_C.DATASET.LANEROOT = '/home/zwt/bdd/bdd_lane_gt'               # the path of ll_seg_annotations folder
+# _C.DATASET.DATAROOT = '/home/user/ZWH/code/YOLOP-main/gt/bdd100k_images_100k/bdd100k/images/100k'       # the path of images folder
+# _C.DATASET.LABELROOT = '/home/user/ZWH/code/YOLOP-main/gt/det_annotations/data2/zwt/bdd/bdd100k/labels/100k'      # the path of det_annotations folder
+# _C.DATASET.MASKROOT = '/home/user/ZWH/code/YOLOP-main/gt/da_seg_annotations/bdd_seg_gt'                # the path of da_seg_annotations folder
+# _C.DATASET.LANEROOT = '/home/user/ZWH/code/YOLOP-main/gt/ll_seg_annotations/bdd_lane_gt'                # the path of ll_seg_annotations folder
+# _C.DATASET.POLEROOT = '/home/user/ZWH/code/YOLOP-main/gt/po_seg_annotations/bdd_pole_gt'                # the path of po_seg_annotations folder
+_C.DATASET.DATAROOT = '/home/user/ZWH/code/YOLOP-main/gt/temp_data/image'       # the path of images folder
+_C.DATASET.LABELROOT = '/home/user/ZWH/code/YOLOP-main/gt/temp_data/det'      # the path of det_annotations folder
+_C.DATASET.MASKROOT = '/home/user/ZWH/code/YOLOP-main/gt/temp_data/drivable'                # the path of da_seg_annotations folder
+_C.DATASET.LANEROOT = '/home/user/ZWH/code/YOLOP-main/gt/temp_data/lane'                # the path of ll_seg_annotations folder
+_C.DATASET.POLEROOT = '/home/user/ZWH/code/YOLOP-main/gt/temp_data/pole'                # the path of po_seg_annotations folder
+             
 _C.DATASET.DATASET = 'BddDataset'
 _C.DATASET.TRAIN_SET = 'train'
 _C.DATASET.TEST_SET = 'val'
@@ -123,7 +131,7 @@ _C.TEST.MODEL_FILE = ''
 _C.TEST.SAVE_JSON = False
 _C.TEST.SAVE_TXT = False
 _C.TEST.PLOTS = True
-_C.TEST.NMS_CONF_THRESHOLD  = 0.001
+_C.TEST.NMS_CONF_THRESHOLD  = 0.2
 _C.TEST.NMS_IOU_THRESHOLD  = 0.6
 
 

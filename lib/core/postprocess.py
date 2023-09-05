@@ -71,7 +71,7 @@ def build_targets(cfg, predictions, targets, model):
 
         # Append
         a = t[:, 6].long()  # anchor indices
-        indices.append((b, a, gj.clamp_(0, gain[3] - 1), gi.clamp_(0, gain[2] - 1)))  # image, anchor, grid indices
+        indices.append((b, a, gj.clamp_(0, gain[3].long() - 1), gi.clamp_(0, gain[2].long() - 1)))  # image, anchor, grid indices
         tbox.append(torch.cat((gxy - gij, gwh), 1))  # box
         anch.append(anchors[a])  # anchors
         tcls.append(c)  # class
@@ -201,6 +201,7 @@ def connect_lane(image, shadow_height=0):
         image[:shadow_height] = 0
     mask = np.zeros((image.shape[0], image.shape[1]), np.uint8)
     
+    #得到图片的联通块
     num_labels, labels, stats, centers = cv2.connectedComponentsWithStats(gray_image, connectivity=8, ltype=cv2.CV_32S)
     # ratios = []
     selected_label = []

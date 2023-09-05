@@ -33,6 +33,7 @@ normalize = transforms.Normalize(
     )
 
 transform=transforms.Compose([
+            # transforms.Resize([720,1280]),
             transforms.ToTensor(),
             normalize,
         ])
@@ -121,8 +122,11 @@ def detect(cfg,opt):
         # da_seg_mask = morphological_process(da_seg_mask, kernel_size=7)
 
         
+        # 得到letterbox中图像的确切大小
         ll_predict = ll_seg_out[:, :,pad_h:(height-pad_h),pad_w:(width-pad_w)]
+        # 上采样，恢复图片正常大小
         ll_seg_mask = torch.nn.functional.interpolate(ll_predict, scale_factor=int(1/ratio), mode='bilinear')
+        # 得到每行最大值和索引
         _, ll_seg_mask = torch.max(ll_seg_mask, 1)
         ll_seg_mask = ll_seg_mask.int().squeeze().cpu().numpy()
         # Lane line post-processing
