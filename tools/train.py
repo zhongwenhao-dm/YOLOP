@@ -1,6 +1,7 @@
 import argparse
 import os, sys
 import math
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
@@ -23,7 +24,7 @@ from tensorboardX import SummaryWriter
 import lib.dataset as dataset
 from lib.config import cfg
 from lib.config import update_config
-from lib.core.loss import get_loss, get_loss_pole
+from lib.core.loss import get_loss, get_loss_pole, get_loss_pole_da2ll
 from lib.core.function import train
 from lib.core.function import validate
 from lib.core.general import fitness
@@ -131,7 +132,7 @@ def main():
 
     # define loss function (criterion) and optimizer
     #定义损失函数，设定优化器
-    criterion = get_loss_pole(cfg, device=device)
+    criterion = get_loss_pole_da2ll(cfg, device=device)
     optimizer = get_optimizer(cfg, model)
 
 
@@ -148,7 +149,7 @@ def main():
     Po_Seg_Head_para_idx = [str(i) for i in range(43,52)]
 
 
-    # 初始化学习率，后续再train()的warmup中会调整学习率
+    # 初始化学习率，后续在train()的warmup中会调整学习率
     # 根据epoch来调整学习率
     lf = lambda x: ((1 + math.cos(x * math.pi / cfg.TRAIN.END_EPOCH)) / 2) * \
                    (1 - cfg.TRAIN.LRF) + cfg.TRAIN.LRF  # cosine
@@ -159,6 +160,8 @@ def main():
         checkpoint_file = os.path.join(
             os.path.join(cfg.LOG_DIR, cfg.DATASET.DATASET), 'checkpoint.pth'
         )
+
+        # 加载预训练模型，继续训练
         if os.path.exists(cfg.MODEL.PRETRAINED):
             logger.info("=> loading model '{}'".format(cfg.MODEL.PRETRAINED))
             checkpoint = torch.load(cfg.MODEL.PRETRAINED)
@@ -171,6 +174,7 @@ def main():
                 cfg.MODEL.PRETRAINED, checkpoint['epoch']))
             #cfg.NEED_AUTOANCHOR = False     #disable autoanchor
         
+        # 加载预训练好的det分支，把前25层的参数赋值给当前模型
         if os.path.exists(cfg.MODEL.PRETRAINED_DET):
             logger.info("=> loading model weight in det branch from '{}'".format(cfg.MODEL.PRETRAINED))
             det_idx_range = [str(i) for i in range(0,25)]
@@ -183,7 +187,22 @@ def main():
             model_dict.update(checkpoint_dict)
             model.load_state_dict(model_dict)
             logger.info("=> loaded det branch checkpoint '{}' ".format(checkpoint_file))
+
+        # 加载预训练好的det、da、ll分支，把前43层的参数赋值给当前模型
+        if os.path.exists(cfg.MODEL.PRETRAINED_DET_DA_LL):
+            logger.info("=> loading model weight in det/da/ll branch from '{}'".format(cfg.MODEL.PRETRAINED_DET_DA_LL))
+            idx_range = [str(i) for i in range(0,43)]
+            model_dict = model.state_dict()
+            checkpoint_file = cfg.MODEL.PRETRAINED_DET_DA_LL
+            checkpoint = torch.load(checkpoint_file)
+            begin_epoch = checkpoint['epoch']
+            last_epoch = checkpoint['epoch']
+            checkpoint_dict = {k: v for k, v in checkpoint['state_dict'].items() if k.split(".")[1] in idx_range}
+            model_dict.update(checkpoint_dict)
+            model.load_state_dict(model_dict)
+            logger.info("=> loaded det/da/ll branch checkpoint '{}' ".format(checkpoint_file))
         
+        # 直接从上次训练的checkpoint开始继续训练
         if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):
             logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
             checkpoint = torch.load(checkpoint_file)
@@ -198,7 +217,7 @@ def main():
             #cfg.NEED_AUTOANCHOR = False     #disable autoanchor
         # model = model.to(device)
 
-        if cfg.TRAIN.SEG_ONLY:  #Only train two segmentation branchs
+        if cfg.TRAIN.SEG_ONLY:  #Only train three segmentation branchs
             logger.info('freeze encoder and Det head...')
             for k, v in model.named_parameters():
                 v.requires_grad = True  # train all layers
@@ -211,11 +230,11 @@ def main():
             # print(model.named_parameters)
             for k, v in model.named_parameters():
                 v.requires_grad = True  # train all layers
-                if k.split(".")[1] in Encoder_para_idx + Da_Seg_Head_para_idx + Ll_Seg_Head_para_idx:
+                if k.split(".")[1] in Encoder_para_idx + Da_Seg_Head_para_idx + Ll_Seg_Head_para_idx + Po_Seg_Head_para_idx:
                     print('freezing %s' % k)
                     v.requires_grad = False
 
-        if cfg.TRAIN.ENC_SEG_ONLY:  # Only train encoder and two segmentation branchs
+        if cfg.TRAIN.ENC_SEG_ONLY:  # Only train encoder and three segmentation branchs
             logger.info('freeze Det head...')
             for k, v in model.named_parameters():
                 v.requires_grad = True  # train all layers 
@@ -227,26 +246,35 @@ def main():
             logger.info('freeze two Seg heads...')
             for k, v in model.named_parameters():
                 v.requires_grad = True  # train all layers
-                if k.split(".")[1] in Da_Seg_Head_para_idx + Ll_Seg_Head_para_idx:
+                if k.split(".")[1] in Da_Seg_Head_para_idx + Ll_Seg_Head_para_idx + Po_Seg_Head_para_idx:
                     print('freezing %s' % k)
                     v.requires_grad = False
 
 
         if cfg.TRAIN.LANE_ONLY: 
-            logger.info('freeze encoder and Det head and Da_Seg heads...')
+            logger.info('freeze encoder and Det head and Da_Seg and Po_Seg heads...')
             # print(model.named_parameters)
             for k, v in model.named_parameters():
                 v.requires_grad = True  # train all layers
-                if k.split(".")[1] in Encoder_para_idx + Da_Seg_Head_para_idx + Det_Head_para_idx:
+                if k.split(".")[1] in Encoder_para_idx + Da_Seg_Head_para_idx + Det_Head_para_idx + Po_Seg_Head_para_idx:
                     print('freezing %s' % k)
                     v.requires_grad = False
 
         if cfg.TRAIN.DRIVABLE_ONLY:
-            logger.info('freeze encoder and Det head and Ll_Seg heads...')
+            logger.info('freeze encoder and Det head and Ll_Seg and Po_Seg heads...')
             # print(model.named_parameters)
             for k, v in model.named_parameters():
                 v.requires_grad = True  # train all layers
-                if k.split(".")[1] in Encoder_para_idx + Ll_Seg_Head_para_idx + Det_Head_para_idx:
+                if k.split(".")[1] in Encoder_para_idx + Ll_Seg_Head_para_idx + Det_Head_para_idx + Po_Seg_Head_para_idx:
+                    print('freezing %s' % k)
+                    v.requires_grad = False
+
+        if cfg.TRAIN.POLE_ONLY:
+            logger.info('freeze encoder and Det head and Ll_Seg and Da_Seg heads...')
+            # print(model.named_parameters)
+            for k, v in model.named_parameters():
+                v.requires_grad = True  # train all layers
+                if k.split(".")[1] in Encoder_para_idx + Ll_Seg_Head_para_idx + Det_Head_para_idx + Da_Seg_Head_para_idx:
                     print('freezing %s' % k)
                     v.requires_grad = False
         
@@ -257,6 +285,7 @@ def main():
     if rank != -1:
         model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank,find_unused_parameters=True)
 
+    # import pdb; pdb.set_trace()
 
     # assign model params
     model.gr = 1.0
@@ -269,7 +298,7 @@ def main():
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
     )
 
-    train_dataset = eval('dataset.' + cfg.DATASET.DATASET + '_pole')(
+    train_dataset = eval('dataset.' + cfg.DATASET.DATASET)(
         cfg=cfg,
         is_train=True,
         inputsize=cfg.MODEL.IMAGE_SIZE,
@@ -278,21 +307,45 @@ def main():
             normalize,
         ])
     )
+
+    # load cityscapes dataset
+    # train_dataset = eval('dataset.CityscapesDataset')(
+    #     cfg=cfg,
+    #     is_train=True,
+    #     inputsize=cfg.MODEL.IMAGE_SIZE,
+    #     transform=transforms.Compose([
+    #         transforms.ToTensor(),
+    #         normalize,
+    #     ])
+    # )
+
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) if rank != -1 else None
 
-    train_loader = DataLoaderX(
-        train_dataset,
-        batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU * len(cfg.GPUS),
-        shuffle=(cfg.TRAIN.SHUFFLE & rank == -1),
-        num_workers=cfg.WORKERS,
-        sampler=train_sampler,
-        pin_memory=cfg.PIN_MEMORY,
-        collate_fn=dataset.AutoDriveDataset_pole.collate_fn
-    )
+    isDisparity = (cfg.DATASET.DISPARITYROOT!='')
+    if isDisparity:
+        train_loader = DataLoaderX(
+            train_dataset,
+            batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU * len(cfg.GPUS),
+            shuffle=(cfg.TRAIN.SHUFFLE & rank == -1),
+            num_workers=cfg.WORKERS,
+            sampler=train_sampler,
+            pin_memory=cfg.PIN_MEMORY,
+            collate_fn=dataset.AutoDriveDataset_pole.collate_fn_dis
+        )
+    else:
+        train_loader = DataLoaderX(
+            train_dataset,
+            batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU * len(cfg.GPUS),
+            shuffle=(cfg.TRAIN.SHUFFLE & rank == -1),
+            num_workers=cfg.WORKERS,
+            sampler=train_sampler,
+            pin_memory=cfg.PIN_MEMORY,
+            collate_fn=dataset.AutoDriveDataset_pole.collate_fn
+        )
     num_batch = len(train_loader)
 
     if rank in [-1, 0]:
-        valid_dataset = eval('dataset.' + cfg.DATASET.DATASET + '_pole')(
+        valid_dataset = eval('dataset.' + cfg.DATASET.DATASET)(
             cfg=cfg,
             is_train=False,
             inputsize=cfg.MODEL.IMAGE_SIZE,

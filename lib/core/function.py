@@ -73,6 +73,102 @@ def train(cfg, train_loader, model, criterion, optimizer, scaler, epoch, num_bat
                 assign_target.append(tgt.to(device))
             target = assign_target
         with amp.autocast(enabled=device.type != 'cpu'):
+            # import pdb; pdb.set_trace()
+            outputs = model(input)
+            # print(outputs[2].shape)
+            
+            total_loss, head_losses = criterion(outputs, target, shapes, model)
+            # print(head_losses)
+
+        # compute gradient and do update step
+        optimizer.zero_grad()
+        scaler.scale(total_loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+
+        if rank in [-1, 0]:
+            # measure accuracy and record loss
+            losses.update(total_loss.item(), input.size(0))
+
+            # _, avg_acc, cnt, pred = accuracy(output.detach().cpu().numpy(),
+            #                                  target.detach().cpu().numpy())
+            # acc.update(avg_acc, cnt)
+
+            # measure elapsed time
+            batch_time.update(time.time() - start)
+            end = time.time()
+            if i % cfg.PRINT_FREQ == 0:
+                msg = 'Epoch: [{0}][{1}/{2}]\t' \
+                      'Time {batch_time.val:.3f}s ({batch_time.avg:.3f}s)\t' \
+                      'Speed {speed:.1f} samples/s\t' \
+                      'Data {data_time.val:.3f}s ({data_time.avg:.3f}s)\t' \
+                      'Loss {loss.val:.5f} ({loss.avg:.5f})'.format(
+                          epoch, i, len(train_loader), batch_time=batch_time,
+                          speed=input.size(0)/batch_time.val,
+                          data_time=data_time, loss=losses)
+                logger.info(msg)
+
+                writer = writer_dict['writer']
+                global_steps = writer_dict['train_global_steps']
+                writer.add_scalar('train_loss', losses.val, global_steps)
+                # writer.add_scalar('train_acc', acc.val, global_steps)
+                writer_dict['train_global_steps'] = global_steps + 1
+
+def train_dis(cfg, train_loader, model, criterion, optimizer, scaler, epoch, num_batch, num_warmup,
+          writer_dict, logger, device, rank=-1):
+    """
+    train for one epoch
+
+    Inputs:
+    - config: configurations 
+    - train_loader: loder for data
+    - model: 
+    - criterion: (function) calculate all the loss, return total_loss, head_losses
+    - writer_dict:
+    outputs(2,)
+    output[0] len:3, [1,3,32,32,85], [1,3,16,16,85], [1,3,8,8,85]
+    output[1] len:1, [2,256,256]
+    output[2] len:1, [2,256,256]
+    target(2,)
+    target[0] [1,n,5]
+    target[1] [2,256,256]
+    target[2] [2,256,256]
+    Returns:
+    None
+
+    """
+    batch_time = AverageMeter()
+    data_time = AverageMeter()
+    losses = AverageMeter()
+
+    # switch to train mode
+    model.train()
+    start = time.time()
+    for i, (input, dis, target, paths, shapes) in enumerate(train_loader):
+        intermediate = time.time()
+        #print('tims:{}'.format(intermediate-start))
+        num_iter = i + num_batch * (epoch - 1)
+
+        if num_iter < num_warmup:
+            # warm up
+            lf = lambda x: ((1 + math.cos(x * math.pi / cfg.TRAIN.END_EPOCH)) / 2) * \
+                           (1 - cfg.TRAIN.LRF) + cfg.TRAIN.LRF  # cosine
+            xi = [0, num_warmup]
+            # model.gr = np.interp(ni, xi, [0.0, 1.0])  # iou loss ratio (obj_loss = 1.0 or iou)
+            for j, x in enumerate(optimizer.param_groups):
+                # bias lr falls from 0.1 to lr0, all other lrs rise from 0.0 to lr0
+                x['lr'] = np.interp(num_iter, xi, [cfg.TRAIN.WARMUP_BIASE_LR if j == 2 else 0.0, x['initial_lr'] * lf(epoch)])
+                if 'momentum' in x:
+                    x['momentum'] = np.interp(num_iter, xi, [cfg.TRAIN.WARMUP_MOMENTUM, cfg.TRAIN.MOMENTUM])
+
+        data_time.update(time.time() - start)
+        if not cfg.DEBUG:
+            input = input.to(device, non_blocking=True)
+            assign_target = []
+            for tgt in target:
+                assign_target.append(tgt.to(device))
+            target = assign_target
+        with amp.autocast(enabled=device.type != 'cpu'):
             outputs = model(input)
             total_loss, head_losses = criterion(outputs, target, shapes,model)
             # print(head_losses)
@@ -110,6 +206,7 @@ def train(cfg, train_loader, model, criterion, optimizer, scaler, epoch, num_bat
                 writer.add_scalar('train_loss', losses.val, global_steps)
                 # writer.add_scalar('train_acc', acc.val, global_steps)
                 writer_dict['train_global_steps'] = global_steps + 1
+
 
 
 def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir,
@@ -284,11 +381,12 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                             continue
                         img_test = cv2.imread(paths[i])
                         da_seg_mask = da_seg_out[i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
-                        da_seg_mask = torch.nn.functional.interpolate(da_seg_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        # da_seg_mask = torch.nn.functional.interpolate(da_seg_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        da_seg_mask = torch.nn.functional.interpolate(da_seg_mask, scale_factor=1/ratio, mode='bilinear')
                         _, da_seg_mask = torch.max(da_seg_mask, 1)
 
                         da_gt_mask = target[1][i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
-                        da_gt_mask = torch.nn.functional.interpolate(da_gt_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        da_gt_mask = torch.nn.functional.interpolate(da_gt_mask, scale_factor=1/ratio, mode='bilinear')
                         _, da_gt_mask = torch.max(da_gt_mask, 1)
 
                         da_seg_mask = da_seg_mask.int().squeeze().cpu().numpy()
@@ -296,16 +394,16 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         # seg_mask = seg_mask > 0.5
                         # plot_img_and_mask(img_test, seg_mask, i,epoch,save_dir)
                         img_test1 = img_test.copy()
-                        _ = show_seg_result(img_test, da_seg_mask, i,epoch,save_dir)
+                        _ = show_seg_result(img_test, da_seg_mask, i, epoch, save_dir)
                         _ = show_seg_result(img_test1, da_gt_mask, i, epoch, save_dir, is_gt=True)
 
                         img_ll = cv2.imread(paths[i])
                         ll_seg_mask = ll_seg_out[i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
-                        ll_seg_mask = torch.nn.functional.interpolate(ll_seg_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        ll_seg_mask = torch.nn.functional.interpolate(ll_seg_mask, scale_factor=1/ratio, mode='bilinear')
                         _, ll_seg_mask = torch.max(ll_seg_mask, 1)
 
                         ll_gt_mask = target[2][i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
-                        ll_gt_mask = torch.nn.functional.interpolate(ll_gt_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        ll_gt_mask = torch.nn.functional.interpolate(ll_gt_mask, scale_factor=1/ratio, mode='bilinear')
                         _, ll_gt_mask = torch.max(ll_gt_mask, 1)
 
                         ll_seg_mask = ll_seg_mask.int().squeeze().cpu().numpy()
@@ -319,11 +417,11 @@ def validate(epoch,config, val_loader, val_dataset, model, criterion, output_dir
                         # add pole
                         img_po = cv2.imread(paths[i])
                         po_seg_mask = po_seg_out[i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
-                        po_seg_mask = torch.nn.functional.interpolate(po_seg_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        po_seg_mask = torch.nn.functional.interpolate(po_seg_mask, scale_factor=1/ratio, mode='bilinear')
                         _, po_seg_mask = torch.max(po_seg_mask, 1)
 
                         po_gt_mask = target[3][i][:, pad_h:height-pad_h, pad_w:width-pad_w].unsqueeze(0)
-                        po_gt_mask = torch.nn.functional.interpolate(po_gt_mask, scale_factor=int(1/ratio), mode='bilinear')
+                        po_gt_mask = torch.nn.functional.interpolate(po_gt_mask, scale_factor=1/ratio, mode='bilinear')
                         _, po_gt_mask = torch.max(po_gt_mask, 1)
 
                         po_seg_mask = po_seg_mask.int().squeeze().cpu().numpy()
