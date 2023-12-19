@@ -585,7 +585,7 @@ class MultiHeadLoss_pole_da2ll(nn.Module):
         lseg_po *= cfg.LOSS.PO_SEG_GAIN * self.lambdas[5]
         liou_ll *= cfg.LOSS.LL_IOU_GAIN * self.lambdas[6]
 
-        laa_ll *= 0.002
+        laa_ll *= 1
         print(laa_ll)
 
         
@@ -675,18 +675,20 @@ def area_aware_loss_for_ll_ori(ll_pre, da_gt):
         s /= (384*640)
         score += s
 
-    # import pdb; pdb.set_trace()
-
     return score
 
 def area_aware_loss_for_ll(ll_pre, da_gt):
+    # da_gt里面0是真值
     score = 0
 
     ll_pre_temp = ll_pre[:, 0]
     da_gt_temp = da_gt[:, 0]
 
     # 构建 KDtree
-    ll_idx_points = torch.stack(torch.where(ll_pre_temp < 0.9), dim=1).cpu().numpy()
+    # pre里面如何界定一个合适的值？比如对一些已经训练比较好的模型，车道线此时输出的概率已经比较高（0.8以上），此时能够比较合适的设置阈值。
+    ll_idx_points = torch.stack(torch.where(ll_pre_temp < 0.9), dim=1).cpu().numpy()  
+    if ll_idx_points.size == 0:
+        return score
     tree = spt.KDTree(data=ll_idx_points)
 
     # 获取所有非零点的索引
@@ -696,12 +698,13 @@ def area_aware_loss_for_ll(ll_pre, da_gt):
     _, indices = tree.query(da_idx_points, k=1)
 
     # 计算损失
-    sss = torch.sum(1 - ll_pre_temp[ll_idx_points[indices][:, 0], ll_idx_points[indices][:, 1]])
+    sss = torch.sum(1 - ll_pre_temp[ll_idx_points[indices][:, 0], ll_idx_points[indices][:, 1], ll_idx_points[indices][:, 2]])
+    # import pdb; pdb.set_trace();
 
     sss /= (384 * 640)
     score += sss
     
-    # import pdb; pdb.set_trace()
+    import pdb; pdb.set_trace()
 
     return score
 

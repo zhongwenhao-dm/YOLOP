@@ -56,19 +56,19 @@ _C.LOSS.LL_IOU_GAIN = 0.2 # lane line iou loss gain
 # DATASET related params
 _C.DATASET = CN(new_allowed=True)
 # BDD 10k路径
-_C.DATASET.DATAROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/bdd100k_images_10k/bdd100k/images/10k'       # the path of images folder
-_C.DATASET.LABELROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/det_annotations_10k'      # the path of det_annotations folder
-_C.DATASET.MASKROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/da_seg_annotations_10k/bdd_seg_gt'                # the path of da_seg_annotations folder
-_C.DATASET.LANEROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/ll_seg_annotations_10k/bdd_lane_gt'                # the path of ll_seg_annotations folder
-_C.DATASET.POLEROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/po_seg_annotations/bdd_pole_gt'                # the path of po_seg_annotations folder
-_C.DATASET.DISPARITYROOT = ''
-# BDD temp_data路径
-# _C.DATASET.DATAROOT = '/home/user/ZWH/code/YOLOP-main/gt/temp_data/image'       # the path of images folder
-# _C.DATASET.LABELROOT = '/home/user/ZWH/code/YOLOP-main/gt/temp_data/det'      # the path of det_annotations folder
-# _C.DATASET.MASKROOT = '/home/user/ZWH/code/YOLOP-main/gt/temp_data/drivable'                # the path of da_seg_annotations folder
-# _C.DATASET.LANEROOT = '/home/user/ZWH/code/YOLOP-main/gt/temp_data/lane'                # the path of ll_seg_annotations folder
-# _C.DATASET.POLEROOT = '/home/user/ZWH/code/YOLOP-main/gt/temp_data/pole'                # the path of po_seg_annotations folder
+# _C.DATASET.DATAROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/bdd100k_images_10k/bdd100k/images/10k'       # the path of images folder
+# _C.DATASET.LABELROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/det_annotations_10k'      # the path of det_annotations folder
+# _C.DATASET.MASKROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/da_seg_annotations_10k/bdd_seg_gt'                # the path of da_seg_annotations folder
+# _C.DATASET.LANEROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/ll_seg_annotations_10k/bdd_lane_gt'                # the path of ll_seg_annotations folder
+# _C.DATASET.POLEROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/po_seg_annotations/bdd_pole_gt'                # the path of po_seg_annotations folder
 # _C.DATASET.DISPARITYROOT = ''
+# BDD temp_data路径
+_C.DATASET.DATAROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/temp_data/image'       # the path of images folder
+_C.DATASET.LABELROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/temp_data/det'      # the path of det_annotations folder
+_C.DATASET.MASKROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/temp_data/drivable'                # the path of da_seg_annotations folder
+_C.DATASET.LANEROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/temp_data/lane'                # the path of ll_seg_annotations folder
+_C.DATASET.POLEROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/temp_data/pole'                # the path of po_seg_annotations folder
+_C.DATASET.DISPARITYROOT = ''
 # cityscapes数据集路径
 # _C.DATASET.DATAROOT = '/media/user/MyPassport/data/cityscapes/leftImg8bit_trainvaltest/leftImg8bit'       # the path of images folder
 # _C.DATASET.LABELROOT = ''      # the path of det_annotations folder

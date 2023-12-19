@@ -455,6 +455,8 @@ class AutoDriveDataset_pole(Dataset):
         # if idx == 0:
         #     print(seg_label[:,:,0])
 
+
+        # 1里面真值标签为255， 2里面为0
         if self.cfg.num_seg_class == 3:
             _,seg0 = cv2.threshold(seg_label[:,:,0],128,255,cv2.THRESH_BINARY)
             _,seg1 = cv2.threshold(seg_label[:,:,1],1,255,cv2.THRESH_BINARY)
