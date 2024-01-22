@@ -551,6 +551,7 @@ class MultiHeadLoss_pole_da2ll(nn.Module):
 
         # add area aware loss for ll
         laa_ll = area_aware_loss_for_ll(predictions[2], targets[1])
+        laa_ll = 0
 
         # add boundary awary loss for da
         # lba_da = boundary_aware_loss_for_da(predictions[1], targets[2])
@@ -586,7 +587,7 @@ class MultiHeadLoss_pole_da2ll(nn.Module):
         liou_ll *= cfg.LOSS.LL_IOU_GAIN * self.lambdas[6]
 
         laa_ll *= 1
-        print(laa_ll)
+        # print(laa_ll)
 
         
         if cfg.TRAIN.DET_ONLY or cfg.TRAIN.ENC_DET_ONLY or cfg.TRAIN.DET_ONLY:

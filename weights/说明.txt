@@ -1,0 +1,1 @@
+1. epoch-120.pth是使用end-to-end.pth在bdd10k上训练的模型，此时da acc=0.979, ll acc=0.752, pole acc=0.328

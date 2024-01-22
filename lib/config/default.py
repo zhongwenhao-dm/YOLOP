@@ -29,9 +29,9 @@ _C.MODEL = CN(new_allowed=True)
 _C.MODEL.NAME = ''
 _C.MODEL.STRU_WITHSHARE = False     #add share_block to segbranch
 _C.MODEL.HEADS_NAME = ['']
-_C.MODEL.PRETRAINED = "/home/user/ZWH/code/YOLOP-main/runs/CityscapesDataset/_2023-05-21-16-04/epoch-127.pth"
+_C.MODEL.PRETRAINED = ""
 _C.MODEL.PRETRAINED_DET = ""
-_C.MODEL.PRETRAINED_DET_DA_LL = ""  #/home/user/ZWH/code/YOLOP-main/weights/End-to-end.pth
+_C.MODEL.PRETRAINED_DET_DA_LL = "/home/conan/ZWH/YOLOP/weights/End-to-end.pth"  #/home/user/ZWH/code/YOLOP-main/weights/End-to-end.pth
 _C.MODEL.IMAGE_SIZE = [640, 640]  # width * height, ex: 192 * 256
 _C.MODEL.EXTRA = CN(new_allowed=True)
 
@@ -56,18 +56,25 @@ _C.LOSS.LL_IOU_GAIN = 0.2 # lane line iou loss gain
 # DATASET related params
 _C.DATASET = CN(new_allowed=True)
 # BDD 10k路径
-# _C.DATASET.DATAROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/bdd100k_images_10k/bdd100k/images/10k'       # the path of images folder
-# _C.DATASET.LABELROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/det_annotations_10k'      # the path of det_annotations folder
-# _C.DATASET.MASKROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/da_seg_annotations_10k/bdd_seg_gt'                # the path of da_seg_annotations folder
-# _C.DATASET.LANEROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/ll_seg_annotations_10k/bdd_lane_gt'                # the path of ll_seg_annotations folder
-# _C.DATASET.POLEROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/po_seg_annotations/bdd_pole_gt'                # the path of po_seg_annotations folder
+_C.DATASET.DATAROOT = '/media/conan/data_conan/ZWH_data/yolop_data/10k/bdd100k_images_10k/bdd100k/images/10k'       # the path of images folder
+_C.DATASET.LABELROOT = '/media/conan/data_conan/ZWH_data/yolop_data/10k/det_annotations_10k'      # the path of det_annotations folder
+_C.DATASET.MASKROOT = '/media/conan/data_conan/ZWH_data/yolop_data/10k/da_seg_annotations_10k/bdd_seg_gt'                # the path of da_seg_annotations folder
+_C.DATASET.LANEROOT = '/media/conan/data_conan/ZWH_data/yolop_data/10k/ll_seg_annotations_10k/bdd_lane_gt'                # the path of ll_seg_annotations folder
+_C.DATASET.POLEROOT = '/media/conan/data_conan/ZWH_data/yolop_data/10k/po_seg_annotations/bdd_pole_gt'                # the path of po_seg_annotations folder
+_C.DATASET.DISPARITYROOT = ''
+# BDD 100k路径
+# _C.DATASET.DATAROOT = '/media/conan/data_conan/ZWH_data/yolop_data/100k/bdd100k_images_100k/bdd100k/images/100k'       # the path of images folder
+# _C.DATASET.LABELROOT = '/media/conan/data_conan/ZWH_data/yolop_data/100k/det_annotations/data2/zwt/bdd/bdd100k/labels/100k'      # the path of det_annotations folder
+# _C.DATASET.MASKROOT = '/media/conan/data_conan/ZWH_data/yolop_data/100k/da_seg_annotations/bdd_seg_gt'                # the path of da_seg_annotations folder
+# _C.DATASET.LANEROOT = '/media/conan/data_conan/ZWH_data/yolop_data/100k/ll_seg_annotations/bdd_lane_gt'                # the path of ll_seg_annotations folder
+# _C.DATASET.POLEROOT = '/media/conan/data_conan/ZWH_data/yolop_data/100k/po_seg_annotations/bdd_pole_gt'                # the path of po_seg_annotations folder
 # _C.DATASET.DISPARITYROOT = ''
 # BDD temp_data路径
-_C.DATASET.DATAROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/temp_data/image'       # the path of images folder
-_C.DATASET.LABELROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/temp_data/det'      # the path of det_annotations folder
-_C.DATASET.MASKROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/temp_data/drivable'                # the path of da_seg_annotations folder
-_C.DATASET.LANEROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/temp_data/lane'                # the path of ll_seg_annotations folder
-_C.DATASET.POLEROOT = '/media/dmgz/MyPassport/3090_ZWH/code/YOLOP-main/gt/temp_data/pole'                # the path of po_seg_annotations folder
+# _C.DATASET.DATAROOT = '/media/conan/data_conan/ZWH_data/yolop_data/temp_data/image'       # the path of images folder
+# _C.DATASET.LABELROOT = '/media/conan/data_conan/ZWH_data/yolop_data/temp_data/det'      # the path of det_annotations folder
+# _C.DATASET.MASKROOT = '/media/conan/data_conan/ZWH_data/yolop_data/temp_data/drivable'                # the path of da_seg_annotations folder
+# _C.DATASET.LANEROOT = '/media/conan/data_conan/ZWH_data/yolop_data/temp_data/lane'                # the path of ll_seg_annotations folder
+# _C.DATASET.POLEROOT = '/media/conan/data_conan/ZWH_data/yolop_data/temp_data/pole'                # the path of po_seg_annotations folder
 _C.DATASET.DISPARITYROOT = ''
 # cityscapes数据集路径
 # _C.DATASET.DATAROOT = '/media/user/MyPassport/data/cityscapes/leftImg8bit_trainvaltest/leftImg8bit'       # the path of images folder
@@ -117,7 +124,7 @@ _C.TRAIN.BEGIN_EPOCH = 0
 _C.TRAIN.END_EPOCH = 240
 
 _C.TRAIN.VAL_FREQ = 1
-_C.TRAIN.BATCH_SIZE_PER_GPU = 2
+_C.TRAIN.BATCH_SIZE_PER_GPU = 10
 _C.TRAIN.SHUFFLE = True
 
 _C.TRAIN.IOU_THRESHOLD = 0.2
@@ -143,7 +150,7 @@ _C.TRAIN.PLOT = True                #
 
 # testing
 _C.TEST = CN(new_allowed=True)
-_C.TEST.BATCH_SIZE_PER_GPU = 2
+_C.TEST.BATCH_SIZE_PER_GPU = 10
 _C.TEST.MODEL_FILE = ''
 _C.TEST.SAVE_JSON = False
 _C.TEST.SAVE_TXT = False

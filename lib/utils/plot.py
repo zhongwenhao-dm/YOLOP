@@ -20,6 +20,47 @@ def plot_img_and_mask(img, mask, index,epoch,save_dir):
     plt.xticks([]), plt.yticks([])
     # plt.show()
     plt.savefig(save_dir+"/batch_{}_{}_seg.png".format(epoch,index))
+    
+def show_seg_result_pole(img, result, index, epoch, save_dir=None, is_ll=False,palette=None,is_demo=False,is_gt=False,is_po=False):
+    # img = mmcv.imread(img)
+    # img = img.copy()
+    # seg = result[0]
+    if palette is None:
+        palette = np.random.randint(
+                0, 255, size=(3, 3))
+    palette[0] = [0, 0, 0]
+    palette[1] = [0, 255, 0]
+    palette[2] = [255, 0, 0]
+    palette = np.array(palette)
+    assert palette.shape[0] == 3 # len(classes)
+    assert palette.shape[1] == 3
+    assert len(palette.shape) == 2
+    
+    if not is_demo:
+        color_seg = np.zeros((result.shape[0], result.shape[1], 3), dtype=np.uint8)
+        for label, color in enumerate(palette):
+            color_seg[result == label, :] = color
+    else:
+        color_area = np.zeros((result[0].shape[0], result[0].shape[1], 3), dtype=np.uint8)
+        
+        # for label, color in enumerate(palette):
+        #     color_area[result[0] == label, :] = color
+
+        color_area[result[0] == 1] = [0, 255, 0]
+        color_area[result[1] ==1] = [255, 0, 0]
+        color_area[result[2] ==1] = [0, 0, 255]
+        color_seg = color_area
+
+    # convert to BGR
+    color_seg = color_seg[..., ::-1]
+    # print(color_seg.shape)
+    color_mask = np.mean(color_seg, 2)
+    img[color_mask != 0] = img[color_mask != 0] * 0.5 + color_seg[color_mask != 0] * 0.5
+    # img = img * 0.5 + color_seg * 0.5
+    img = img.astype(np.uint8)
+    img = cv2.resize(img, (1280,720), interpolation=cv2.INTER_LINEAR)
+  
+    return img
 
 def show_seg_result(img, result, index, epoch, save_dir=None, is_ll=False,palette=None,is_demo=False,is_gt=False,is_po=False):
     # img = mmcv.imread(img)
